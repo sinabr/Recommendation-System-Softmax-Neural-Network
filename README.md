@@ -1,2 +1,1 @@
-# Recommendation-System-Softmax-Neural-Network
-Implementing Recommendation System using Softmax DNN - Movielens dataset
+# Recommendation-System Combining Neural Collaborative Filtering and Content Based Filtering
