@@ -14,6 +14,13 @@ class GMFModel(nn.Module):
 
         self.optimizer = select_optimizer(self, options.optimization)
             
+        # Loss Function
+        if options['feedback'] == 'explicit':
+            # Binary Cross Entropy
+            self.loss_func = nn.BCELoss()
+        else:
+            # Mean Square Error
+            self.loss_func = nn.MSELoss()
 
         self.dimension = options['embedding_dimension']
 
@@ -40,16 +47,46 @@ class GMFModel(nn.Module):
         elif options['algorithm'] == 'adam' :
             return optim.Adam(self.parameters(),lr=options['learning_rate'],weight_decay=options['regularization'])
         elif options['algorithm'] == 'spare_adam' :
-            return optim.SparseAdam()
+            return optim.SparseAdam(self.parameters(),lr=options['learning_rate'])
         elif options['algorithm'] == 'rms_prop':
             return optim.RMSprop(self.parameters(),lr=options['learning_rate'],momentum=options['momentum'],alpha=options['alpha'])
 
 
-    def feed_forward(self,user,item):
-        user_embedding = self.user_embedding(user)
-        item_embedding = self.item_embedding(item)
-        dot_product = torch.mul(user_embedding, item_embedding)
+    def feed_forward(self,users,items):
+        user_embeddings = self.user_embedding(user)
+        item_embeddings = self.item_embedding(item)
+        
+        """ Dot Product : """
+        # dot_product = user_embeddings * item_embeddings
+        
+        """ More Effiecient : """  
+        dot_product = torch.mul(user_embeddings, item_embeddings)
         pred_rate = self.activation(self.output(dot_product))
         return pred_rate
 
     def train_batch(self, users, items, ratings):
+        self.optimizer.zero_grad()
+        # Reshape The Tensor
+        predictions = self.feed_forward(users,items).view(-1)
+        # Compute Loss
+        batch_loss = self.loss_func(predictions,ratings)
+        # Back Propagation
+        batch_loss.backward()
+        # Parameter Update Based On The Gradient
+        self.optimizer.step()
+        # loss value as a Float
+        loss = batch_loss.item()
+        return loss
+
+    def train_epoch(self, train_data):
+        self.train()
+        loss = 0
+        for batch in enumerate(train_data):
+            user = batch[0]
+            item = batch[1]
+            rate = batch[2]
+            batch_loss = self.train_batch(user,item,rate)
+            loss = loss + batch_loss
+        return
+
+    
