@@ -4,8 +4,11 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader , Dataset
 import random
+from copy import deepcopy
 random.seed(0)
 
+
+""" Dataset Class from Pytorch """
 class RatingData(Dataset):
     def __init__(self,user,item,target):
         self.user_tensor = user
@@ -48,6 +51,9 @@ class Data:
 
         self.all_users = set(self.ratings['userId'].unique())
         self.all_items = set(self.ratings['itemId'].unique())
+        self.n_users = len(self.all_users)
+        self.n_items = len(self.all_items)
+
 
         copy_ratings = deepcopy(ratings)
         
@@ -76,7 +82,7 @@ class Data:
         train = ratings[ratings['time_rank'] > test_number]
         return train, test
 
-    def negative_items(self, ratings, feedback='explicit', n_negatives):
+    def negative_items(self, ratings, feedback='explicit', n_negatives=10):
         self.n_negatives = n_negatives
         """ Get the list of items a user interacted """
         # interaction_lists = ratings.groupby('userId')['itemId'].reindex(columns=['itemId':'interactions'])
@@ -89,9 +95,9 @@ class Data:
             # negative_by_users['negative_sampels'] = negative_by_users['negative_items'].apply(lambda items: random(items, n_negatives))
             return negative_by_users
 
-        elif feedback == 'implicit'
+        elif feedback == 'implicit':
             # In Implicit feedback, Not Interacted is Negative
-            interactions = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(columns:{'itemId':'interacted'})
+            interactions = ratings.groupby('userId')['itemId'].apply(set).reset_index().rename(columns={'itemId':'interacted'})
             interactions['negative_items'] = interactions['interacted'].apply(lambda items: self.all_items - items)
             # samples from the negative items
             # interactions['negative_samples'] = interactions['negative_items'].apply(lambda items: random.sample(items, n_negatives))
@@ -126,3 +132,25 @@ class Data:
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
         return dataloader
+
+    def evaluation_set(self):
+        eval_ratings = pd.merge(self.test_set, self.negatives[['userId', 'negative_samples']], on='userId')
+
+        eval_users, eval_items, eval_neg_users, eval_neg_items = [], [], [], []
+
+        for item in eval_ratings.itertuples():
+
+            eval_users.append(int(item.userId))
+            eval_items.append(int(item.itemId))
+
+            for i in range(len(item.negative_samples)):
+
+                eval_neg_users.append(int(item.userId))
+                eval_neg_items.append(int(item.negative_samples[i]))
+
+        userTensor = torch.LongTensor(eval_users)
+        itemTensor = torch.LongTensor(eval_items)
+        negUserTensor = torch.LongTensor(eval_neg_users)
+        negItemTensor = torch.LongTensor(eval_neg_items)
+
+        return [userTensor, itemTensor, negUserTensor, negItemTensor]
