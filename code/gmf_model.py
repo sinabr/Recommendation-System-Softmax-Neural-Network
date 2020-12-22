@@ -14,7 +14,7 @@ class GMFModel(nn.Module):
         #  Use Metrics for evaluation purposes
         self.metric = Metrics(top_k=10)
 
-        self.optimizer = self.select_optimizer(self, options.optimization)
+        self.optimizer = self.select_optimizer(options)
 
         # Loss Function
         if options['feedback'] == 'explicit':
@@ -124,3 +124,4 @@ class GMFModel(nn.Module):
             print('EPOCH : ' + e_id + ' Hit Ratio : ' + hit_score + ' NDGC Score : ' + ndgc_score)
 
             return hit_score, ndgc_score
+
